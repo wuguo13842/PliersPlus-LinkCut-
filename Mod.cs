@@ -16,22 +16,32 @@ namespace PliersPlus
         public static Sprite ConnectVisualizerSprite { get; private set; }
 
         // 在游戏早期（Db 初始化之前）加载图标
-        [PLibMethod(RunAt.BeforeDbInit)]
-        internal static void BeforeDbInit()
-        {
-            // 加载图标
-            var assembly = Assembly.GetExecutingAssembly();
-            ConnectIconSprite = Utilities.CreateSpriteDxt5(
-                assembly.GetManifestResourceStream("PliersPlus.images.image_wirecutter_button.dds"),
-                32, 32
-            );
-            ConnectIconSprite.name = "ConnectIcon";
-            
-            // 注册到全局 Sprite 集合
-            if (Assets.Sprites.ContainsKey(ConnectIconSprite.name))
-                Assets.Sprites.Remove(ConnectIconSprite.name);
-            Assets.Sprites.Add(ConnectIconSprite.name, ConnectIconSprite);
-        }
+		// 在 BeforeDbInit 中添加 visualizer 图标的加载
+		[PLibMethod(RunAt.BeforeDbInit)]
+		internal static void BeforeDbInit()
+		{
+			var assembly = Assembly.GetExecutingAssembly();
+			
+			// 按钮图标（32x32）
+			ConnectIconSprite = Utilities.CreateSpriteDxt5(
+				assembly.GetManifestResourceStream("PliersPlus.images.image_wirecutter_button.dds"),
+				32, 32
+			);
+			ConnectIconSprite.name = "ConnectIcon";
+			if (Assets.Sprites.ContainsKey(ConnectIconSprite.name))
+				Assets.Sprites.Remove(ConnectIconSprite.name);
+			Assets.Sprites.Add(ConnectIconSprite.name, ConnectIconSprite);
+			
+			// 可视化图标（256x256）- 用于鼠标指针
+			ConnectVisualizerSprite = Utilities.CreateSpriteDxt5(
+				assembly.GetManifestResourceStream("PliersPlus.images.image_wirecutter_visualizer.dds"),
+				256, 256
+			);
+			ConnectVisualizerSprite.name = "ConnectVisualizerIcon";
+			if (Assets.Sprites.ContainsKey(ConnectVisualizerSprite.name))
+				Assets.Sprites.Remove(ConnectVisualizerSprite.name);
+			Assets.Sprites.Add(ConnectVisualizerSprite.name, ConnectVisualizerSprite);
+		}
 
         public override void OnLoad(Harmony harmony)
         {

@@ -29,7 +29,7 @@ protected override void OnPrefabInit()
     visualizer.SetActive(false);
     var offset = new GameObject();
     var sr = offset.AddComponent<SpriteRenderer>();
-    var icon = Assets.GetSprite("ConnectIcon");
+    var icon = Assets.GetSprite("ConnectVisualizerIcon");
     if (icon != null)
         sr.sprite = icon;
     else

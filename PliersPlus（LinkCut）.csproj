@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="images\image_wirecutter_button.dds" />
+    <EmbeddedResource Include="images\image_wirecutter_visualizer.dds" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
