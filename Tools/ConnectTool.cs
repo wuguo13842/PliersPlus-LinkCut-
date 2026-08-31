@@ -29,7 +29,7 @@ protected override void OnPrefabInit()
     visualizer.SetActive(false);
     var offset = new GameObject();
     var sr = offset.AddComponent<SpriteRenderer>();
-    var icon = Assets.GetSprite("icon_wirecutter_button");
+    var icon = Assets.GetSprite("ConnectIcon");
     if (icon != null)
         sr.sprite = icon;
     else

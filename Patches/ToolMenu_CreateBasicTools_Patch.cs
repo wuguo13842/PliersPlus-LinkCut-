@@ -22,7 +22,7 @@ namespace PliersPlus.Patches
 
             var connectCollection = ToolMenu.CreateToolCollection(
                 new LocString("Connect"),
-                "icon_wirecutter_button",
+                "ConnectIcon",
                 Mod.ConnectAction.GetKAction(),  // 使用 PLib 创建的有效动作
                 nameof(ConnectTool),
                 new LocString("Connect utility networks"),
