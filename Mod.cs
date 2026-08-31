@@ -21,10 +21,11 @@ namespace PliersPlus
 		internal static void BeforeDbInit()
 		{
 			var assembly = Assembly.GetExecutingAssembly();
+			var resourcePrefix = $"{assembly.GetName().Name}.images.";
 			
 			// 按钮图标（32x32）
 			ConnectIconSprite = Utilities.CreateSpriteDxt5(
-				assembly.GetManifestResourceStream("PliersPlus.images.image_wirecutter_button.dds"),
+				assembly.GetManifestResourceStream(resourcePrefix + "image_wirecutter_button.dds"),
 				32, 32
 			);
 			ConnectIconSprite.name = "ConnectIcon";
@@ -34,7 +35,7 @@ namespace PliersPlus
 			
 			// 可视化图标（256x256）- 用于鼠标指针
 			ConnectVisualizerSprite = Utilities.CreateSpriteDxt5(
-				assembly.GetManifestResourceStream("PliersPlus.images.image_wirecutter_visualizer.dds"),
+				assembly.GetManifestResourceStream(resourcePrefix + "image_wirecutter_visualizer.dds"),
 				256, 256
 			);
 			ConnectVisualizerSprite.name = "ConnectVisualizerIcon";
