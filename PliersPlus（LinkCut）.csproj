@@ -8,8 +8,8 @@
     <ProjectGuid>{591F20A3-AB81-4227-AE17-ED3A9BE3DEA0}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>PliersPlus（LinkCut）</RootNamespace>
-    <AssemblyName>PliersPlus（LinkCut）</AssemblyName>
+    <RootNamespace>PliersPlus</RootNamespace>
+    <AssemblyName>PliersPlus</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -42,9 +42,11 @@
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>$(GameLibsFolder)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="PLib">
-      <HintPath>DLL\PLib.dll</HintPath>
+      <HintPath>$(GameLibsFolder)\PLib.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -60,7 +62,14 @@
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>$(GameLibsFolder)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(GameLibsFolder)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Mod.cs" />
     <Compile Include="Patches\DisconnectToolPatch.cs" />
     <Compile Include="Patches\IntegrationPatch.cs" />
@@ -68,7 +77,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Tools\ConnectTool.cs" />
     <Compile Include="Tools\ConnectToolHoverCard.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Cairath.ONIMetadataFileGenerator" Version="1.0.0" />
+    <PackageReference Include="PLib">
+      <Version>4.25.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="images\image_wirecutter_button.dds" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -78,21 +94,19 @@
     <APIVersion>2</APIVersion>
     <SupportedContent>ALL</SupportedContent>
     <!-- 模组基本信息 -->
-    <ModStaticID>PliersPlus（LinkCut）</ModStaticID>
-    <ModTitle>PliersPlus（LinkCut）</ModTitle>
-    <ModDescription>Extended Disconnect Tool with unlimited range</ModDescription>
+    <ModStaticID>PliersPlus</ModStaticID>
+    <ModTitle>PliersPlus - Connect Tool</ModTitle>
+    <ModDescription>Adds a Connect tool to restore utility connections</ModDescription>
     <ModVersion>0.0.0.1</ModVersion>
   </PropertyGroup>
   <Target Name="CopyModToGame" AfterTargets="Build">
-    <!-- 使用 WriteLinesToFile 生成 mod_info.yaml -->
+    <!-- 生成 mod_info.yaml -->
     <WriteLinesToFile File="$(ModFolder)/mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild); APIVersion: $(APIVersion); supportedContent: $(SupportedContent); version: $(ModVersion); staticID: $(ModStaticID)" />
     <!-- 确保目标目录存在 -->
     <MakeDir Directories="$(ModFolder)" Condition="!Exists('$(ModFolder)')" />
     <!-- 复制 DLL -->
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
-    <!-- 如果有 .pdb 调试文件，也可以复制（可选） -->
+    <!-- 复制 .pdb -->
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
-    <!-- 如果你的模组还有 mod_info.yaml 等文件，也可以一并复制 -->
-    <!-- <Copy SourceFiles="mod_info.yaml" DestinationFolder="$(ModFolder)" /> -->
   </Target>
 </Project>
