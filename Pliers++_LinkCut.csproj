@@ -8,8 +8,8 @@
     <ProjectGuid>{591F20A3-AB81-4227-AE17-ED3A9BE3DEA0}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>PliersPlus</RootNamespace>
-    <AssemblyName>PliersPlus</AssemblyName>
+    <RootNamespace>Pliers++_LinkCut</RootNamespace>
+    <AssemblyName>Pliers++_LinkCut</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -95,8 +95,8 @@
     <APIVersion>2</APIVersion>
     <SupportedContent>ALL</SupportedContent>
     <!-- 模组基本信息 -->
-    <ModStaticID>PliersPlus</ModStaticID>
-    <ModTitle>PliersPlus - Connect Tool</ModTitle>
+    <ModStaticID>Pliers++_LinkCut</ModStaticID>
+    <ModTitle>Pliers++_LinkCut - Connect Tool</ModTitle>
     <ModDescription>Adds a Connect tool to restore utility connections</ModDescription>
     <ModVersion>0.0.0.1</ModVersion>
   </PropertyGroup>
