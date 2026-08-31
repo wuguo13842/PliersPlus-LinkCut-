@@ -247,7 +247,7 @@ protected override void OnPrefabInit()
         }
 
         protected override string GetConfirmSound() => "OutletConnected";
-        protected override string GetDragSound() => "Tile_Drag_PositiveTool";
+        protected override string GetDragSound() => "Tile_Drag_NegativeTool";
 
         protected override void GetDefaultFilters(out ToolParameterMenu.ToggleData[] filters)
         {
