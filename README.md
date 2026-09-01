@@ -8,7 +8,7 @@
 实现连接的工具
 只支持 1x∞ 单线无限长
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # PliersPlus（LinkCut）
 1. The single line mode (Line) of the official scissors tool is changed to the box selection mode (Box)
