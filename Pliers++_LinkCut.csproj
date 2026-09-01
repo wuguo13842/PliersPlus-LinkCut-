@@ -108,6 +108,8 @@
     <MakeDir Directories="$(ModFolder)" Condition="!Exists('$(ModFolder)')" />
     <!-- 复制 DLL -->
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
+    <!-- 复制 PLib -->
+    <Copy SourceFiles="$(OutputPath)PLib.dll" DestinationFolder="$(ModFolder)" />
     <!-- 复制 .pdb -->
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
     <!-- 复制 .png -->
