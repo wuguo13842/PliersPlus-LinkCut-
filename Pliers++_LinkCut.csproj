@@ -92,7 +92,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <!-- 模组兼容性 -->
-    <MinimumSupportedBuild>737790</MinimumSupportedBuild>
+    <MinimumSupportedBuild>744825</MinimumSupportedBuild>
     <APIVersion>2</APIVersion>
     <SupportedContent>ALL</SupportedContent>
     <!-- 模组基本信息 -->
