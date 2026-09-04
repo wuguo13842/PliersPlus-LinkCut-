@@ -53,7 +53,7 @@ namespace PliersPlus
             ConnectAction = new PActionManager().CreateAction(
                 "PliersPlus.Connect",
                 "Connect Tool",
-                new PKeyBinding()
+                new PKeyBinding(KKeyCode.C, Modifier.Shift)
             );
 
             // 使用 PPatchManager 在早期注册补丁
