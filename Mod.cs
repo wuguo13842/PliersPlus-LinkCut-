@@ -21,7 +21,7 @@ namespace PliersPlus
 		internal static void BeforeDbInit()
 		{
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourcePrefix = $"{assembly.GetName().Name}.images.";
+			var resourcePrefix = $"{assembly.GetName().Name}.ModAssets.assets.";
 			
 			// 按钮图标（32x32）
 			ConnectIconSprite = Utilities.CreateSpriteDxt5(
@@ -52,7 +52,7 @@ namespace PliersPlus
             // 创建自定义动作
             ConnectAction = new PActionManager().CreateAction(
                 "PliersPlus.Connect",
-                "Connect Tool",
+                STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_TOOL,
                 new PKeyBinding(KKeyCode.C, Modifier.Shift)
             );
 
@@ -61,8 +61,6 @@ namespace PliersPlus
             
             // 注册本地化（如果有）
             new PLocalization().Register();
-            
-            Debug.Log("[PliersPlus] Mod loaded with PLib.");
         }
     }
 

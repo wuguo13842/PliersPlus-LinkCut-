@@ -1,0 +1,19 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PliersPlus\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "PliersPlus.STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_TOOL"
+msgid "Connect Tool"
+msgstr "连接工具"
+
+msgctxt "PliersPlus.STRINGS.PLIERS_PLUS.ACTIONS.CONNECT"
+msgid "Connect"
+msgstr "连接"
+
+msgctxt "PliersPlus.STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_DESC"
+msgid "Connect utility networks"
+msgstr "连接管道与线路"

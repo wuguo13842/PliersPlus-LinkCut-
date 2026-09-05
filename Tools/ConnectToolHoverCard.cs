@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using static STRINGS.UI;
+using STRINGS;
 
 namespace PliersPlus.Tools
 {
@@ -8,7 +9,7 @@ namespace PliersPlus.Tools
     {
         public ConnectToolHoverCard()
         {
-            ToolName = "Connect Tool";
+            ToolName = STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_TOOL;
         }
 
         public override void UpdateHoverElements(List<KSelectable> hoveredObjects)
@@ -18,10 +19,10 @@ namespace PliersPlus.Tools
             DrawTitle(HoverTextScreen.Instance, drawer);
             drawer.NewLine();
             drawer.DrawIcon(HoverTextScreen.Instance.GetSprite("icon_mouse_left"), 20);
-            drawer.DrawText("Connect", Styles_Instruction.Standard);
+            drawer.DrawText(STRINGS.PLIERS_PLUS.ACTIONS.CONNECT, Styles_Instruction.Standard);
             drawer.AddIndent(8);
             drawer.DrawIcon(HoverTextScreen.Instance.GetSprite("icon_mouse_right"), 20);
-            drawer.DrawText("Cancel", Styles_Instruction.Standard);
+            drawer.DrawText(UI.CONFIRMDIALOG.CANCEL, Styles_Instruction.Standard);
             drawer.EndShadowBar();
             drawer.EndDrawing();
         }

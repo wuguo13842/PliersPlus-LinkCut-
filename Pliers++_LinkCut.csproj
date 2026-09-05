@@ -45,10 +45,6 @@
       <HintPath>$(GameLibsFolder)\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="PLib">
-      <HintPath>$(GameLibsFolder)\PLib.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -72,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Mod.cs" />
+    <Compile Include="STRINGS.cs" />
     <Compile Include="Patches\DisconnectToolPatch.cs" />
     <Compile Include="Patches\IntegrationPatch.cs" />
     <Compile Include="Patches\ToolMenu_CreateBasicTools_Patch.cs" />
@@ -86,8 +83,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="images\image_wirecutter_button.dds" />
-    <EmbeddedResource Include="images\image_wirecutter_visualizer.dds" />
+    <EmbeddedResource Include="ModAssets\assets\image_wirecutter_button.dds" />
+    <EmbeddedResource Include="ModAssets\assets\image_wirecutter_visualizer.dds" />
+    <TranslationFiles Include="ModAssets\translations\*.po" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
@@ -113,6 +111,8 @@
     <!-- 复制 .pdb -->
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
     <!-- 复制 .png -->
-    <Copy SourceFiles="images/preview.png" DestinationFolder="$(ModFolder)" />
+    <Copy SourceFiles="ModAssets/assets/preview.png" DestinationFolder="$(ModFolder)" />
+    <!-- 复制 翻译文件 -->
+    <Copy SourceFiles="@(TranslationFiles)" DestinationFolder="$(ModFolder)\translations\" />
   </Target>
 </Project>

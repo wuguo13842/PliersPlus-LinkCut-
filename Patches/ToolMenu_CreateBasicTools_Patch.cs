@@ -21,11 +21,11 @@ namespace PliersPlus.Patches
             }
 
             var connectCollection = ToolMenu.CreateToolCollection(
-                new LocString("Connect"),
+                STRINGS.PLIERS_PLUS.ACTIONS.CONNECT,
                 "ConnectIcon",
                 Mod.ConnectAction.GetKAction(),  // 使用 PLib 创建的有效动作
                 nameof(ConnectTool),
-                new LocString("Connect utility networks"),
+                STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_DESC,
                 false
             );
 
