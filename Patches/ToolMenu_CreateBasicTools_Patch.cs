@@ -20,12 +20,15 @@ namespace PliersPlus.Patches
                 }
             }
 
+            // 描述中包含 {Hotkey} 占位符，游戏会自动替换为当前快捷键
+            string descWithHotkey = STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_DESC + " {Hotkey}";
+
             var connectCollection = ToolMenu.CreateToolCollection(
                 STRINGS.PLIERS_PLUS.ACTIONS.CONNECT,
                 "ConnectIcon",
-                Mod.ConnectAction.GetKAction(),  // 使用 PLib 创建的有效动作
+                Mod.ConnectAction.GetKAction(),  // 传入 KAction 让游戏识别
                 nameof(ConnectTool),
-                STRINGS.PLIERS_PLUS.ACTIONS.CONNECT_DESC,
+                descWithHotkey,
                 false
             );
 
