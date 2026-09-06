@@ -13,6 +13,7 @@ namespace PliersPlus.Tools
         private List<VisData> visualizersInUse = new List<VisData>();
         private GameObjectPool connectVisPool;
         private int lastRefreshedCell = -1;
+		private static readonly int LAYER_COUNT = (int)ObjectLayer.NumLayers;
 
         [SerializeField]
         private GameObject connectVisPrefab;
@@ -154,7 +155,7 @@ protected override void OnPrefabInit()
                 {
                     int cell = Grid.XYToCell(x, y);
                     if (!Grid.IsVisible(cell)) continue;
-                    for (int layer = 0; layer < 45; layer++)
+                    for (int layer = 0; layer < LAYER_COUNT; layer++)
                     {
                         GameObject go = Grid.Objects[cell, layer];
                         if (go == null) continue;
