@@ -19,7 +19,7 @@ namespace PliersPlus.Tools
             DrawTitle(HoverTextScreen.Instance, drawer);
             drawer.NewLine();
             drawer.DrawIcon(HoverTextScreen.Instance.GetSprite("icon_mouse_left"), 20);
-            drawer.DrawText(Strings.Get(STRINGS.PLIERS_PLUS.ACTIONS.CONNECT), Styles_Instruction.Standard);
+            drawer.DrawText(STRINGS.PLIERS_PLUS.ACTIONS.CONNECT, Styles_Instruction.Standard);
             drawer.AddIndent(8);
             drawer.DrawIcon(HoverTextScreen.Instance.GetSprite("icon_mouse_right"), 20);
             drawer.DrawText(UI.CONFIRMDIALOG.CANCEL, Styles_Instruction.Standard);
