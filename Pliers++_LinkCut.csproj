@@ -65,6 +65,10 @@
       <HintPath>$(GameLibsFolder)\UnityEngine.ImageConversionModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(GameLibsFolder)\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Mod.cs" />
@@ -80,6 +84,11 @@
     <PackageReference Include="Cairath.ONIMetadataFileGenerator" Version="1.0.0" />
     <PackageReference Include="PLib">
       <Version>4.25.0</Version>
+    </PackageReference>
+    <!-- 用 ILRepack 命令行工具包替代 MSBuild Task 包，GeneratePathProperty 生成 $(PkgILRepack) 变量 -->
+    <PackageReference Include="ILRepack">
+      <Version>2.0.29</Version>
+      <GeneratePathProperty>true</GeneratePathProperty>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
@@ -99,17 +108,40 @@
     <ModDescription>Adds a Connect tool to restore utility connections</ModDescription>
     <ModVersion>0.0.0.1</ModVersion>
   </PropertyGroup>
-  <Target Name="CopyModToGame" AfterTargets="Build">
+  <!-- 第一步：直接用 ILRepack.exe 命令行把 PLib 合并进主 DLL，绕开 MSBuild Task 的加载与解析机制 -->
+  <Target Name="MergePLib" AfterTargets="Build">
+    <PropertyGroup>
+      <_MergedDir>$(MSBuildProjectDirectory)\$(OutputPath)merged</_MergedDir>
+      <!-- $(PkgILRepack) 指向 NuGet 里 ILRepack 包的实际还原目录 -->
+      <_ILRepackExe>$(PkgILRepack)\tools\ILRepack.exe</_ILRepackExe>
+      <!-- GetFullPath 规范化路径；TrimEnd 去掉末尾反斜杠，避免 \ 被命令行当成 \" 转义引号 -->
+      <_AbsOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(OutputPath)'))</_AbsOutputPath>
+      <_AbsOutputPath>$(_AbsOutputPath.TrimEnd('\'))</_AbsOutputPath>
+      <_AbsGameLibs>$([System.IO.Path]::GetFullPath('$(GameLibsFolder)'))</_AbsGameLibs>
+      <_AbsGameLibs>$(_AbsGameLibs.TrimEnd('\'))</_AbsGameLibs>
+      <_MainDll>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).dll'))</_MainDll>
+      <_PLibDll>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(OutputPath)PLib.dll'))</_PLibDll>
+      <_OutDll>$([System.IO.Path]::GetFullPath('$(_MergedDir)\$(AssemblyName).dll'))</_OutDll>
+    </PropertyGroup>
+    <MakeDir Directories="$(_MergedDir)" />
+    <!-- /out: 输出文件；/internalize 将 PLib 内部化；/parallel 并行；/verbose 打印详细信息
+         /lib: 指定依赖搜索路径（先本地输出目录，再 GameLibsFolder）
+         ConsoleToMSBuild="true" 让 ILRepack 的输出出现在 VS 输出窗口
+         WorkingDirectory 让 ILRepack 能找到自己旁边的依赖 DLL -->
+    <Exec Command="&quot;$(_ILRepackExe)&quot; /out:&quot;$(_OutDll)&quot; /internalize /parallel /verbose &quot;$(_MainDll)&quot; &quot;$(_PLibDll)&quot; /lib:&quot;$(_AbsOutputPath)&quot; /lib:&quot;$(_AbsGameLibs)&quot;"
+          WorkingDirectory="$(PkgILRepack)\tools"
+          ConsoleToMSBuild="true" />
+  </Target>
+  <!-- 第二步：把合并后的 DLL 和资源复制到 mod 文件夹 -->
+  <Target Name="CopyModToGame" AfterTargets="MergePLib">
     <!-- 生成 mod_info.yaml -->
     <WriteLinesToFile File="$(ModFolder)/mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild); APIVersion: $(APIVersion); supportedContent: $(SupportedContent); version: $(ModVersion); staticID: $(ModStaticID)" />
     <!-- 确保目标目录存在 -->
     <MakeDir Directories="$(ModFolder)" Condition="!Exists('$(ModFolder)')" />
-    <!-- 复制 DLL -->
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
-    <!-- 复制 PLib -->
-    <Copy SourceFiles="$(OutputPath)PLib.dll" DestinationFolder="$(ModFolder)" />
+    <!-- 复制合并后的 DLL -->
+    <Copy SourceFiles="$(_MergedDir)\$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
     <!-- 复制 .pdb -->
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb')" />
     <!-- 复制 .png -->
     <Copy SourceFiles="ModAssets/assets/preview.png" DestinationFolder="$(ModFolder)" />
     <!-- 复制 翻译文件 -->
