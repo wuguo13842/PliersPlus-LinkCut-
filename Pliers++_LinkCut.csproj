@@ -114,6 +114,9 @@
       <_MergedDir>$(MSBuildProjectDirectory)\$(OutputPath)merged</_MergedDir>
       <!-- $(PkgILRepack) 指向 NuGet 里 ILRepack 包的实际还原目录 -->
       <_ILRepackExe>$(PkgILRepack)\tools\ILRepack.exe</_ILRepackExe>
+      <!-- 跨平台：Windows 直接运行 ILRepack.exe；Linux/Unix 用 mono 启动 -->
+      <_ILRepackRunner Condition="'$(OS)' != 'Unix'"></_ILRepackRunner>
+      <_ILRepackRunner Condition="'$(OS)' == 'Unix'">mono </_ILRepackRunner>
       <!-- GetFullPath 规范化路径；TrimEnd 去掉末尾反斜杠，避免 \ 被命令行当成 \" 转义引号 -->
       <_AbsOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(OutputPath)'))</_AbsOutputPath>
       <_AbsOutputPath>$(_AbsOutputPath.TrimEnd('\'))</_AbsOutputPath>
@@ -128,25 +131,28 @@
          /lib: 指定依赖搜索路径（先本地输出目录，再 GameLibsFolder）
          ConsoleToMSBuild="true" 让 ILRepack 的输出出现在 VS 输出窗口
          WorkingDirectory 让 ILRepack 能找到自己旁边的依赖 DLL -->
-    <Exec Command="&quot;$(_ILRepackExe)&quot; /out:&quot;$(_OutDll)&quot; /internalize /parallel /verbose &quot;$(_MainDll)&quot; &quot;$(_PLibDll)&quot; /lib:&quot;$(_AbsOutputPath)&quot; /lib:&quot;$(_AbsGameLibs)&quot;"
+    <Exec Command="$(_ILRepackRunner)&quot;$(_ILRepackExe)&quot; /out:&quot;$(_OutDll)&quot; /internalize /parallel /verbose &quot;$(_MainDll)&quot; &quot;$(_PLibDll)&quot; /lib:&quot;$(_AbsOutputPath)&quot; /lib:&quot;$(_AbsGameLibs)&quot;"
           WorkingDirectory="$(PkgILRepack)\tools"
           ConsoleToMSBuild="true" />
   </Target>
   <!-- 第二步：把合并后的 DLL 和资源复制到 mod 文件夹 -->
   <Target Name="CopyModToGame" AfterTargets="MergePLib">
+    <PropertyGroup>
+      <ProjectModFolder>$(ModFolder)\$(AssemblyName)</ProjectModFolder>
+    </PropertyGroup>
     <!-- 确保目标目录存在 -->
-    <MakeDir Directories="$(ModFolder)" Condition="!Exists('$(ModFolder)')" />
+    <MakeDir Directories="$(ProjectModFolder)" Condition="!Exists('$(ProjectModFolder)')" />
     <!-- 生成 mod_info.yaml -->
-    <WriteLinesToFile File="$(ModFolder)\mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild);APIVersion: $(APIVersion);supportedContent: $(SupportedContent);version: &quot;$(ModVersion)&quot;" />
+    <WriteLinesToFile File="$(ProjectModFolder)\mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild);APIVersion: $(APIVersion);supportedContent: $(SupportedContent);version: &quot;$(ModVersion)&quot;" />
     <!-- 生成 mod.yaml -->
-    <WriteLinesToFile File="$(ModFolder)\mod.yaml" Overwrite="true" Encoding="UTF-8" Lines="title: &quot;$(ModTitle)&quot;;description: &quot;$(ModDescription)&quot;;staticID: $(ModStaticID)" />
+    <WriteLinesToFile File="$(ProjectModFolder)\mod.yaml" Overwrite="true" Encoding="UTF-8" Lines="title: &quot;$(ModTitle)&quot;;description: &quot;$(ModDescription)&quot;;staticID: $(ModStaticID)" />
     <!-- 复制合并后的 DLL -->
-    <Copy SourceFiles="$(_MergedDir)\$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
+    <Copy SourceFiles="$(_MergedDir)\$(AssemblyName).dll" DestinationFolder="$(ProjectModFolder)" />
     <!-- 复制 .pdb -->
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModFolder)" Condition="Exists('$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb')" />
-    <!-- 复制 .png -->
-    <Copy SourceFiles="ModAssets/assets/preview.png" DestinationFolder="$(ModFolder)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ProjectModFolder)" Condition="Exists('$(MSBuildProjectDirectory)\$(OutputPath)$(AssemblyName).pdb')" />
+    <!-- 复制 .png（如果存在） -->
+    <Copy SourceFiles="ModAssets/assets/preview.png" DestinationFolder="$(ProjectModFolder)" Condition="Exists('ModAssets/assets/preview.png')" />
     <!-- 复制 翻译文件 -->
-    <Copy SourceFiles="@(TranslationFiles)" DestinationFolder="$(ModFolder)\translations\" />
+    <Copy SourceFiles="@(TranslationFiles)" DestinationFolder="$(ProjectModFolder)\translations\" />
   </Target>
 </Project>

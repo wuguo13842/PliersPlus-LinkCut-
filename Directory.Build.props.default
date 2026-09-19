@@ -3,16 +3,23 @@
 <Project>
 	<PropertyGroup>
 		<!--Gamedata Folder, adjust to your own ONI installation-->
-		<GameLibsFolder>E:\Saved Games\steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsFolder>
-		<GameLibsFolder Condition="!Exists('$(GameLibsFolder)')" >/mnt/Intel_Pestflatte/SteamLibrary/steamapps/common/OxygenNotIncluded/OxygenNotIncluded_Data/Managed</GameLibsFolder>
+		<GameLibsFolder Condition="'$(OS)' != 'Unix'">S:\SteamLibrary\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsFolder>
+		<GameLibsFolder Condition="'$(OS)' == 'Unix'">/mnt/Intel_Pestflatte/SteamLibrary/steamapps/common/OxygenNotIncluded/OxygenNotIncluded_Data/Managed</GameLibsFolder>
 		
 		<!--OutputModFolder, adjust it to your own dev folder-->
-		<ModFolder>D:\Documents\Klei\OxygenNotIncluded\mods\local\Pliers++_LinkCut</ModFolder>
-		<ModFolder Condition="!Exists('$(GameLibsFolder)')">/mnt/Intel_Pestflatte/Klei/OxygenNotIncluded/mods/dev</ModFolder>
+		<!-- 开发用 mods 目录，自动指向 文档\Klei\OxygenNotIncluded\mods\dev -->
+		<DevModsFolder>Klei\OxygenNotIncluded\mods\dev</DevModsFolder>
+		<ModFolder Condition="'$(OS)' != 'Unix'">D:\Documents\Klei\OxygenNotIncluded\mods\dev</ModFolder>
+		<ModFolder Condition="'$(OS)' == 'Unix'">/mnt/Intel_Pestflatte/Klei/OxygenNotIncluded/mods/dev</ModFolder>
 		<!--Default for dev folder: -->
 		<!--<ModFolder>$(UserProfile)\Documents\Klei\OxygenNotIncluded\mods\dev</ModFolder>-->
 		
 		<!--Used to generate reference assemblies for GitHub CI; set this to 0 if you don't use automatic github builds and/or don't want to install Refasmer-->
 		<RefasmerInstalled>1</RefasmerInstalled>
+	</PropertyGroup>
+	  <!-- 如果注册表中有“我的文档”路径，则覆盖 ModFolder -->
+	<!-- 注意：DocumentsFolderRegistry 必须由外部逻辑赋值；否则这个 PropertyGroup 不会生效。 -->
+	<PropertyGroup Condition=" '$(DocumentsFolderRegistry)' != '' ">
+		<ModFolder>$(DocumentsFolderRegistry)\$(DevModsFolder)</ModFolder>
 	</PropertyGroup>
 </Project>
