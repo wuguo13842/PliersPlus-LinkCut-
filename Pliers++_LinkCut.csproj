@@ -134,10 +134,12 @@
   </Target>
   <!-- 第二步：把合并后的 DLL 和资源复制到 mod 文件夹 -->
   <Target Name="CopyModToGame" AfterTargets="MergePLib">
-    <!-- 生成 mod_info.yaml -->
-    <WriteLinesToFile File="$(ModFolder)/mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild); APIVersion: $(APIVersion); supportedContent: $(SupportedContent); version: $(ModVersion); staticID: $(ModStaticID)" />
     <!-- 确保目标目录存在 -->
     <MakeDir Directories="$(ModFolder)" Condition="!Exists('$(ModFolder)')" />
+    <!-- 生成 mod_info.yaml -->
+    <WriteLinesToFile File="$(ModFolder)\mod_info.yaml" Overwrite="true" Encoding="UTF-8" Lines="minimumSupportedBuild: $(MinimumSupportedBuild);APIVersion: $(APIVersion);supportedContent: $(SupportedContent);version: &quot;$(ModVersion)&quot;" />
+    <!-- 生成 mod.yaml -->
+    <WriteLinesToFile File="$(ModFolder)\mod.yaml" Overwrite="true" Encoding="UTF-8" Lines="title: &quot;$(ModTitle)&quot;;description: &quot;$(ModDescription)&quot;;staticID: $(ModStaticID)" />
     <!-- 复制合并后的 DLL -->
     <Copy SourceFiles="$(_MergedDir)\$(AssemblyName).dll" DestinationFolder="$(ModFolder)" />
     <!-- 复制 .pdb -->
