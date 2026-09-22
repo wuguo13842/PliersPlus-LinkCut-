@@ -9,14 +9,11 @@ namespace PliersPlus.Tools
     {
         public static ConnectTool Instance { get; private set; }
         private bool singleConnectMode = true;
-        private int lineModeMaxLength = 9999;
         private List<VisData> visualizersInUse = new List<VisData>();
         private GameObjectPool connectVisPool;
         private int lastRefreshedCell = -1;
+        private HashSet<IUtilityNetworkMgr> dirtyMgrs = new HashSet<IUtilityNetworkMgr>();
 		private static readonly int LAYER_COUNT = (int)ObjectLayer.NumLayers;
-
-        [SerializeField]
-        private GameObject connectVisPrefab;
 
         public static void DestroyInstance() => Instance = null;
 
@@ -103,12 +100,7 @@ protected override void OnPrefabInit()
         }
     }
 
-    // 4. 设置单线模式
-    var modeField = typeof(FilteredDragTool).GetField("singleDisconnectMode", BindingFlags.NonPublic | BindingFlags.Instance);
-    if (modeField != null)
-        modeField.SetValue(this, true);
-
-    // 5. 添加悬停卡片
+    // 4. 添加悬停卡片
     gameObject.AddComponent<ConnectToolHoverCard>();
 }
 
@@ -126,6 +118,15 @@ protected override void OnPrefabInit()
                 upPos = SnapToLine(upPos);
             RunOnRegion(downPos, upPos, ConnectCellsAction);
             ClearVisualizers();
+            // 所有 SetConnections 完成后统一刷新一次区域内所有可视器。
+            // 原因：SetConnections 内部对 physicalGrid 做邻居掩码（GetNeighboursAsConnections），
+            // 若处理顺序靠后的 cell 在 Reconnect 时回填了前一个 cell 的 physicalGrid，
+            // 前一个 cell 早已 Refresh 过，动画会停在错误状态直到下一次全局刷新。
+            RefreshRegionVisuals(downPos, upPos);
+            // 本次拖拽涉及的所有 network manager 统一标记为 dirty，
+            // 避免在 ConnectCellsAction 里逐格调用（ForceRebuildNetworks 只是置 dirty = true，重复调用无意义）。
+            foreach (var m in dirtyMgrs) m.ForceRebuildNetworks();
+            dirtyMgrs.Clear();
         }
 
         public override void OnMouseMove(Vector3 cursorPos)
@@ -166,13 +167,15 @@ protected override void OnPrefabInit()
                         if (networkMgr.IsNullOrDestroyed()) continue;
                         UtilityConnections connections = networkMgr.GetNetworkManager().GetConnections(cell, false);
                         UtilityConnections toAdd = 0;
-                        if ((connections & UtilityConnections.Left) == 0 && IsInsideRegion(min, max, cell, -1, 0))
+                        // 只有邻居格确实存在同类型网络建筑时才加连接位，
+                        // 否则 visualGrid 会被写入幽灵位（SetConnections 对 visualGrid 不做邻居掩码）。
+                        if ((connections & UtilityConnections.Left) == 0 && IsConnectableNeighbour(min, max, cell, -1, 0, networkMgr))
                             toAdd |= UtilityConnections.Left;
-                        if ((connections & UtilityConnections.Right) == 0 && IsInsideRegion(min, max, cell, 1, 0))
+                        if ((connections & UtilityConnections.Right) == 0 && IsConnectableNeighbour(min, max, cell, 1, 0, networkMgr))
                             toAdd |= UtilityConnections.Right;
-                        if ((connections & UtilityConnections.Up) == 0 && IsInsideRegion(min, max, cell, 0, 1))
+                        if ((connections & UtilityConnections.Up) == 0 && IsConnectableNeighbour(min, max, cell, 0, 1, networkMgr))
                             toAdd |= UtilityConnections.Up;
-                        if ((connections & UtilityConnections.Down) == 0 && IsInsideRegion(min, max, cell, 0, -1))
+                        if ((connections & UtilityConnections.Down) == 0 && IsConnectableNeighbour(min, max, cell, 0, -1, networkMgr))
                             toAdd |= UtilityConnections.Down;
                         if (toAdd != 0)
                             action(cell, go, networkMgr, toAdd);
@@ -181,10 +184,37 @@ protected override void OnPrefabInit()
             }
         }
 
-        private bool IsInsideRegion(Vector2I min, Vector2I max, int cell, int xoff, int yoff)
+        private bool IsConnectableNeighbour(Vector2I min, Vector2I max, int cell, int xoff, int yoff,
+                                            IHaveUtilityNetworkMgr srcComponent)
         {
-            Grid.CellToXY(Grid.OffsetCell(cell, xoff, yoff), out int x, out int y);
-            return x >= min.x && x < max.x && y >= min.y && y < max.y;
+            int nc = Grid.OffsetCell(cell, xoff, yoff);
+            if (!Grid.IsValidCell(nc)) return false;
+
+            // 1. 必须在框选矩形内
+            Grid.CellToXY(nc, out int nx, out int ny);
+            if (nx < min.x || nx >= max.x || ny < min.y || ny >= max.y) return false;
+
+            // 2. 必须可见
+            if (!Grid.IsVisible(nc)) return false;
+
+            // 3. 邻居格上必须存在同类型的网络建筑（电线对电线、管道对管道）
+            var srcMgr = srcComponent.GetNetworkManager();
+            if (srcMgr == null) return false;
+
+            for (int layer = 0; layer < LAYER_COUNT; layer++)
+            {
+                GameObject ngo = Grid.Objects[nc, layer];
+                if (ngo == null) continue;
+                Building b = ngo.GetComponent<Building>();
+                if (b == null || b.Def == null || b.Def.BuildingComplete == null) continue;
+                var n = b.Def.BuildingComplete.GetComponent<IHaveUtilityNetworkMgr>();
+                if (n.IsNullOrDestroyed()) continue;
+                var nm = n.GetNetworkManager();
+                if (nm == null) continue;
+                // 同类型网络管理器（WireNetworkManager 对 WireNetworkManager 等）
+                if (nm.GetType() == srcMgr.GetType()) return true;
+            }
+            return false;
         }
 
         private void ConnectCellsAction(int cell, GameObject objectOnCell, IHaveUtilityNetworkMgr utilityComponent, UtilityConnections addConnections)
@@ -196,9 +226,13 @@ protected override void OnPrefabInit()
                 if (mgr != null)
                 {
                     UtilityConnections newConnections = mgr.GetConnections(cell, false) | addConnections;
+                    // KAnimGraphTileVisualizer.UpdateConnections 内部会调用
+                    //   connectionManager.SetConnections(new_connections, cell, isPhysicalBuilding)
+                    // 这一步才是真正把连接写进 UtilityNetworkManager（包括 physicalGrid 掩码 + Reconnect 回填邻居）。
                     vis.UpdateConnections(newConnections);
                     vis.Refresh();
-                    mgr.ForceRebuildNetworks();
+                    // 收集本次涉及的所有 network manager，OnDragComplete 末尾统一 ForceRebuildNetworks。
+                    dirtyMgrs.Add(mgr);
                 }
             }
             var building = objectOnCell.GetComponent<Building>();
@@ -208,10 +242,47 @@ protected override void OnPrefabInit()
 
         private void VisualizeAction(int cell, GameObject objectOnCell, IHaveUtilityNetworkMgr utilityComponent, UtilityConnections addConnections)
         {
+            // 四个方向都要画：ConnectTool 是新增连接，addConnections 可能包含任意方向位。
             if ((addConnections & UtilityConnections.Down) != 0)
                 CreateVisualizer(cell, Grid.CellBelow(cell), true);
+            if ((addConnections & UtilityConnections.Up) != 0)
+                CreateVisualizer(cell, Grid.CellAbove(cell), true);
             if ((addConnections & UtilityConnections.Right) != 0)
                 CreateVisualizer(cell, Grid.CellRight(cell), false);
+            if ((addConnections & UtilityConnections.Left) != 0)
+                CreateVisualizer(cell, Grid.CellLeft(cell), false);
+        }
+
+        // 在 OnDragComplete 末尾统一调用，重刷区域内所有 KAnimGraphTileVisualizer。
+        // 原因见 OnDragComplete 注释：SetConnections 的邻居掩码 + Reconnect 回填有时间差，
+        // 每个 cell 各自 Refresh 会读到中间状态。
+        private void RefreshRegionVisuals(Vector3 pos1, Vector3 pos2)
+        {
+            Vector2 reg1 = GetRegularizedPos(Vector2.Min(pos1, pos2), true);
+            Vector2 reg2 = GetRegularizedPos(Vector2.Max(pos1, pos2), false);
+            Vector2I min = new Vector2I((int)reg1.x, (int)reg1.y);
+            Vector2I max = new Vector2I((int)reg2.x, (int)reg2.y);
+
+            for (int x = min.x; x < max.x; x++)
+            {
+                for (int y = min.y; y < max.y; y++)
+                {
+                    int cell = Grid.XYToCell(x, y);
+                    if (!Grid.IsVisible(cell)) continue;
+                    for (int layer = 0; layer < LAYER_COUNT; layer++)
+                    {
+                        GameObject go = Grid.Objects[cell, layer];
+                        if (go == null) continue;
+                        var vis = go.GetComponent<KAnimGraphTileVisualizer>();
+                        if (vis != null)
+                        {
+                            // Refresh 内部从 connectionManager.GetConnections 重新拉最新状态，
+                            // 此刻 Reconnect 已把所有邻居的 physicalGrid 补齐，读到的是最终值。
+                            vis.Refresh();
+                        }
+                    }
+                }
+            }
         }
 
         private void CreateVisualizer(int cell1, int cell2, bool rotate)
