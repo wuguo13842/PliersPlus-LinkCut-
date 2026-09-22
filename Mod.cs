@@ -13,6 +13,7 @@ namespace PliersPlus
         public static PAction ConnectAction { get; private set; }
         public static Sprite ConnectIconSprite { get; private set; }
         public static Sprite ConnectVisualizerSprite { get; private set; }
+        public static Sprite ConnectDragSprite { get; private set; }
 
         private static bool spritesLoaded = false;
 
@@ -46,25 +47,62 @@ namespace PliersPlus
             var assembly = Assembly.GetExecutingAssembly();
             var resourcePrefix = $"{assembly.GetName().Name}.ModAssets.assets.";
 
-            // 按钮图标（32x32）
-            ConnectIconSprite = Utilities.CreateSpriteDxt5(
-                assembly.GetManifestResourceStream(resourcePrefix + "image_wirecutter_button.dds"),
-                32, 32
-            );
-            ConnectIconSprite.name = "ConnectIcon";
-            if (Assets.Sprites.ContainsKey(ConnectIconSprite.name))
-                Assets.Sprites.Remove(ConnectIconSprite.name);
-            Assets.Sprites.Add(ConnectIconSprite.name, ConnectIconSprite);
+            // 三个 dds 走同一条加载 + 注册流程：
+            //   读嵌入式资源 → CreateSpriteDxt5 → 注册到 Assets.Sprites
+            // 尺寸按各自的原图设置：
+            //   - image_wirecutter_button.dds    32x32   工具菜单按钮
+            //   - image_wirecutter_visualizer.dds 256x256 鼠标跟随图标
+            //   - image_connect_drag.dds         200x200 拖拽预览（对齐原版 DisconnectVis 的 mask 尺寸）
+            ConnectIconSprite = LoadAndRegisterSprite(
+                assembly, resourcePrefix, "image_wirecutter_button.dds",
+                32, 32, "ConnectIcon");
 
-            // 可视化图标（256x256）- 用于鼠标指针
-            ConnectVisualizerSprite = Utilities.CreateSpriteDxt5(
-                assembly.GetManifestResourceStream(resourcePrefix + "image_wirecutter_visualizer.dds"),
-                256, 256
-            );
-            ConnectVisualizerSprite.name = "ConnectVisualizerIcon";
-            if (Assets.Sprites.ContainsKey(ConnectVisualizerSprite.name))
-                Assets.Sprites.Remove(ConnectVisualizerSprite.name);
-            Assets.Sprites.Add(ConnectVisualizerSprite.name, ConnectVisualizerSprite);
+            ConnectVisualizerSprite = LoadAndRegisterSprite(
+                assembly, resourcePrefix, "image_wirecutter_visualizer.dds",
+                256, 256, "ConnectVisualizerIcon");
+
+            ConnectDragSprite = LoadAndRegisterSprite(
+                assembly, resourcePrefix, "image_connect_drag.dds",
+                200, 200, "ConnectDragIcon");
+        }
+
+        /// <summary>
+        /// 统一入口：读嵌入式 dds → 包成 Sprite → 注册到 Assets.Sprites。
+        /// 名字相同的旧 sprite 会被先移除，避免重复注册。
+        /// </summary>
+        private static Sprite LoadAndRegisterSprite(
+            Assembly assembly, string prefix, string fileName,
+            int width, int height, string spriteName)
+        {
+            var stream = assembly.GetManifestResourceStream(prefix + fileName);
+            if (stream == null)
+            {
+                Debug.LogWarning($"[PliersPlus] Embedded resource not found: {prefix}{fileName}");
+                return null;
+            }
+
+            Sprite sprite;
+            try
+            {
+                sprite = Utilities.CreateSpriteDxt5(stream, width, height);
+            }
+            finally
+            {
+                stream.Dispose();
+            }
+
+            if (sprite == null)
+            {
+                Debug.LogWarning($"[PliersPlus] CreateSpriteDxt5 returned null for {fileName}");
+                return null;
+            }
+
+            sprite.name = spriteName;
+            if (Assets.Sprites.ContainsKey(spriteName))
+                Assets.Sprites.Remove(spriteName);
+            Assets.Sprites.Add(spriteName, sprite);
+
+            return sprite;
         }
 
         public override void OnLoad(Harmony harmony)
