@@ -211,8 +211,10 @@ protected override void OnPrefabInit()
                 if (n.IsNullOrDestroyed()) continue;
                 var nm = n.GetNetworkManager();
                 if (nm == null) continue;
-                // 同类型网络管理器（WireNetworkManager 对 WireNetworkManager 等）
-                if (nm.GetType() == srcMgr.GetType()) return true;
+				// 引用相等 —— 同一个 Game.Instance.xxxConduitSystem 实例才算兼容。
+				// 不能用 GetType()：气体管和液体管都是 UtilityNetworkManager<FlowUtilityNetwork, Vent>，
+				// 运行时类型相同，GetType() 判不出区别。
+				if (ReferenceEquals(nm, srcMgr)) return true;
             }
             return false;
         }
