@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
 
@@ -13,96 +14,190 @@ namespace PliersPlus.Tools
         private GameObjectPool connectVisPool;
         private int lastRefreshedCell = -1;
         private HashSet<IUtilityNetworkMgr> dirtyMgrs = new HashSet<IUtilityNetworkMgr>();
-		private static readonly int LAYER_COUNT = (int)ObjectLayer.NumLayers;
+        private static readonly int LAYER_COUNT = (int)ObjectLayer.NumLayers;
 
         public static void DestroyInstance() => Instance = null;
 
-protected override void OnPrefabInit()
-{
-    base.OnPrefabInit();
-    Instance = this;
-
-    // 1. visualizer（鼠标图标）
-    visualizer = new GameObject("ConnectVisualizer");
-    visualizer.SetActive(false);
-    var offset = new GameObject();
-    var sr = offset.AddComponent<SpriteRenderer>();
-    var icon = Assets.GetSprite("ConnectVisualizerIcon");
-    if (icon != null)
-        sr.sprite = icon;
-    else
-        sr.sprite = CreateFallbackSprite();
-    sr.color = new Color32(0, 119, 145, 255);
-    offset.transform.SetParent(visualizer.transform);
-    offset.transform.localPosition = new Vector3(0, Grid.HalfCellSizeInMeters);
-    if (sr.sprite != null)
-    {
-        var s = sr.sprite;
-        offset.transform.localScale = new Vector3(
-            Grid.CellSizeInMeters / (s.texture.width / s.pixelsPerUnit),
-            Grid.CellSizeInMeters / (s.texture.height / s.pixelsPerUnit)
-        );
-    }
-    offset.SetLayerRecursively(LayerMask.NameToLayer("Overlay"));
-    visualizer.transform.SetParent(transform);
-
-    // 2. GameObjectPool
-    connectVisPool = new GameObjectPool(
-        () =>
+        protected override void OnPrefabInit()
         {
-            var prefab = Assets.GetPrefab("DisconnectVisSingleLine");
-            if (prefab == null)
-                prefab = Assets.GetPrefab("DisconnectVis");
-            GameObject go;
-            if (prefab != null)
-                go = GameUtil.KInstantiate(prefab, Grid.SceneLayer.FXFront, null, 0);
+            base.OnPrefabInit();
+            Instance = this;
+
+            // 0. 从 dds 头里读实际尺寸并加载（不再硬编码 64x64）
+            Texture2D dragTexture = null;
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var stream = assembly.GetManifestResourceStream(
+                    $"{assembly.GetName().Name}.ModAssets.assets.image_connect_drag.dds");
+                if (stream != null)
+                {
+                    try
+                    {
+                        byte[] all = new byte[stream.Length];
+                        int read = 0;
+                        while (read < all.Length)
+                        {
+                            int n = stream.Read(all, read, all.Length - read);
+                            if (n <= 0) break;
+                            read += n;
+                        }
+
+                        // DDS 头：magic(4) + headerSize(4) + flags(4) + height(4) + width(4) + ...
+                        // height 在偏移 12，width 在偏移 16（都是 uint32 小端）
+                        uint height = BitConverter.ToUInt32(all, 12);
+                        uint width = BitConverter.ToUInt32(all, 16);
+                        Debug.Log($"[PliersPlus] dds 文件总长 {all.Length} 字节，header 里 width={width} height={height}");
+
+                        // 检查是否带 DX10 扩展头（DDS magic 后面第一个 dword 若是 DX10 fourCC，则头是 148 字节）
+                        // 简化判断：如果没有额外扩展，数据从偏移 128 开始
+                        int dataOffset = 128;
+                        uint fourCC = BitConverter.ToUInt32(all, 84);  // "DXT5" / "DX10" / etc
+                        // 'DX10' = 0x30315844
+                        if (fourCC == 0x30315844)
+                        {
+                            dataOffset = 148;
+                            Debug.Log("[PliersPlus] 检测到 DX10 扩展头，数据从 148 开始");
+                        }
+
+                        int payloadLength = all.Length - dataOffset;
+                        byte[] payload = new byte[payloadLength];
+                        Array.Copy(all, dataOffset, payload, 0, payloadLength);
+
+                        dragTexture = new Texture2D((int)width, (int)height, TextureFormat.DXT5, false);
+                        dragTexture.LoadRawTextureData(payload);
+                        dragTexture.Apply(false, true);
+                        Debug.Log($"[PliersPlus] 贴图加载成功: {dragTexture.width}x{dragTexture.height} fmt={dragTexture.format}");
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[PliersPlus] 贴图加载失败: {e}");
+                    }
+                    finally
+                    {
+                        stream.Dispose();
+                    }
+                }
+                if (dragTexture == null)
+                    Debug.LogWarning("[PliersPlus] image_connect_drag.dds 未找到或加载失败");
+            }
+
+            // 1. visualizer（鼠标图标）
+            visualizer = new GameObject("ConnectVisualizer");
+            visualizer.SetActive(false);
+            var offset = new GameObject();
+            var sr = offset.AddComponent<SpriteRenderer>();
+            var icon = Assets.GetSprite("ConnectVisualizerIcon");
+            if (icon != null)
+                sr.sprite = icon;
             else
-                go = new GameObject("ConnectVis");
-            go.SetActive(false);
-            var rend = go.GetComponent<SpriteRenderer>();
-            if (rend != null)
-                rend.color = new Color32(0, 180, 0, 255);
-            return go;
-        },
-        null,
-        1
-    );
+                sr.sprite = CreateFallbackSprite();
+            sr.color = new Color32(0, 119, 145, 255);
+            offset.transform.SetParent(visualizer.transform);
+            offset.transform.localPosition = new Vector3(0, Grid.HalfCellSizeInMeters);
+            if (sr.sprite != null)
+            {
+                var s = sr.sprite;
+                offset.transform.localScale = new Vector3(
+                    Grid.CellSizeInMeters / (s.texture.width / s.pixelsPerUnit),
+                    Grid.CellSizeInMeters / (s.texture.height / s.pixelsPerUnit)
+                );
+            }
+            offset.SetLayerRecursively(LayerMask.NameToLayer("Overlay"));
+            visualizer.transform.SetParent(transform);
+
+            // 2. GameObjectPool
+            GameObject visPrefab = null;
+            var disconnectTool = DisconnectTool.Instance;
+            if (disconnectTool == null)
+            {
+                var all = Resources.FindObjectsOfTypeAll<DisconnectTool>();
+                if (all != null && all.Length > 0)
+                    disconnectTool = all[0];
+            }
+            if (disconnectTool != null)
+            {
+                var singleField = typeof(DisconnectTool).GetField(
+                    "disconnectVisSingleModePrefab", BindingFlags.NonPublic | BindingFlags.Instance);
+                var multiField = typeof(DisconnectTool).GetField(
+                    "disconnectVisMultiModePrefab", BindingFlags.NonPublic | BindingFlags.Instance);
+                visPrefab = singleField?.GetValue(disconnectTool) as GameObject;
+                if (visPrefab == null)
+                    visPrefab = multiField?.GetValue(disconnectTool) as GameObject;
+            }
+            if (visPrefab == null)
+                Debug.LogWarning("[PliersPlus] DisconnectVis prefab 未找到");
+
+            connectVisPool = new GameObjectPool(
+                () =>
+                {
+                    GameObject go;
+                    if (visPrefab != null)
+                    {
+                        go = GameUtil.KInstantiate(visPrefab, Grid.SceneLayer.FXFront, null, 0);
+
+                        if (dragTexture != null)
+                        {
+                            var mrs = go.GetComponentsInChildren<MeshRenderer>(true);
+                            foreach (var mr in mrs)
+                            {
+                                var mat = mr.material;
+                                if (mat == null) continue;
+                                mat.SetTexture("_MainTex", dragTexture);
+                                mat.SetColor("_Color", new Color32(0, 119, 145, 255));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        go = new GameObject("ConnectVis");
+                        go.layer = LayerMask.NameToLayer("Overlay");
+                        var srFallback = go.AddComponent<SpriteRenderer>();
+                        var tex = new Texture2D(1, 1);
+                        tex.SetPixel(0, 0, Color.white);
+                        tex.Apply();
+                        srFallback.sprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f));
+                        go.transform.localScale = new Vector3(Grid.CellSizeInMeters, Grid.CellSizeInMeters, 1f);
+                    }
+                    go.SetActive(false);
+                    return go;
+                },
+                null,
+                1
+            );
 
     // 3. areaVisualizer 初始化（通过反射从 DeconstructTool 获取预制体）
-    var deconstructTool = DeconstructTool.Instance;
-    if (deconstructTool != null)
-    {
-        // 获取 DeconstructTool 的私有 areaVisualizer 字段
-        var areaField = typeof(DeconstructTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (areaField == null)
-            areaField = typeof(DragTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
-        var areaPrefab = areaField?.GetValue(deconstructTool) as GameObject;
-        if (areaPrefab != null)
-        {
-            GameObject areaVisualizer = Util.KInstantiate(areaPrefab, null);
-            areaVisualizer.SetActive(false);
-            areaVisualizer.name = "ConnectAreaVisualizer";
-            var sr2 = areaVisualizer.GetComponent<SpriteRenderer>();
-            if (sr2 != null)
+            var deconstructTool = DeconstructTool.Instance;
+            if (deconstructTool != null)
             {
-                sr2.color = new Color32(0, 119, 145, 255);
-                sr2.material.color = new Color32(0, 119, 145, 255);
+        // 获取 DeconstructTool 的私有 areaVisualizer 字段
+                var areaField = typeof(DeconstructTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (areaField == null)
+                    areaField = typeof(DragTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
+                var areaPrefab = areaField?.GetValue(deconstructTool) as GameObject;
+                if (areaPrefab != null)
+                {
+                    GameObject areaVisualizer = Util.KInstantiate(areaPrefab, null);
+                    areaVisualizer.SetActive(false);
+                    areaVisualizer.name = "ConnectAreaVisualizer";
+                    var sr2 = areaVisualizer.GetComponent<SpriteRenderer>();
+                    if (sr2 != null)
+                    {
+                        sr2.color = new Color32(0, 119, 145, 255);
+                        sr2.material.color = new Color32(0, 119, 145, 255);
+                    }
+                    areaVisualizer.transform.SetParent(transform);
+
+                    var baseAreaField = typeof(DragTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (baseAreaField != null)
+                        baseAreaField.SetValue(this, areaVisualizer);
+                    var baseSrField = typeof(DragTool).GetField("areaVisualizerSpriteRenderer", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (baseSrField != null)
+                        baseSrField.SetValue(this, sr2);
+                }
             }
-            areaVisualizer.transform.SetParent(transform);
 
-            // 通过反射设置基类 DragTool 的私有字段
-            var baseAreaField = typeof(DragTool).GetField("areaVisualizer", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (baseAreaField != null)
-                baseAreaField.SetValue(this, areaVisualizer);
-            var baseSrField = typeof(DragTool).GetField("areaVisualizerSpriteRenderer", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (baseSrField != null)
-                baseSrField.SetValue(this, sr2);
+            gameObject.AddComponent<ConnectToolHoverCard>();
         }
-    }
-
-    // 4. 添加悬停卡片
-    gameObject.AddComponent<ConnectToolHoverCard>();
-}
 
         protected override void OnActivateTool()
         {
@@ -118,13 +213,7 @@ protected override void OnPrefabInit()
                 upPos = SnapToLine(upPos);
             RunOnRegion(downPos, upPos, ConnectCellsAction);
             ClearVisualizers();
-            // 所有 SetConnections 完成后统一刷新一次区域内所有可视器。
-            // 原因：SetConnections 内部对 physicalGrid 做邻居掩码（GetNeighboursAsConnections），
-            // 若处理顺序靠后的 cell 在 Reconnect 时回填了前一个 cell 的 physicalGrid，
-            // 前一个 cell 早已 Refresh 过，动画会停在错误状态直到下一次全局刷新。
             RefreshRegionVisuals(downPos, upPos);
-            // 本次拖拽涉及的所有 network manager 统一标记为 dirty，
-            // 避免在 ConnectCellsAction 里逐格调用（ForceRebuildNetworks 只是置 dirty = true，重复调用无意义）。
             foreach (var m in dirtyMgrs) m.ForceRebuildNetworks();
             dirtyMgrs.Clear();
         }
@@ -167,8 +256,6 @@ protected override void OnPrefabInit()
                         if (networkMgr.IsNullOrDestroyed()) continue;
                         UtilityConnections connections = networkMgr.GetNetworkManager().GetConnections(cell, false);
                         UtilityConnections toAdd = 0;
-                        // 只有邻居格确实存在同类型网络建筑时才加连接位，
-                        // 否则 visualGrid 会被写入幽灵位（SetConnections 对 visualGrid 不做邻居掩码）。
                         if ((connections & UtilityConnections.Left) == 0 && IsConnectableNeighbour(min, max, cell, -1, 0, networkMgr))
                             toAdd |= UtilityConnections.Left;
                         if ((connections & UtilityConnections.Right) == 0 && IsConnectableNeighbour(min, max, cell, 1, 0, networkMgr))
@@ -189,18 +276,11 @@ protected override void OnPrefabInit()
         {
             int nc = Grid.OffsetCell(cell, xoff, yoff);
             if (!Grid.IsValidCell(nc)) return false;
-
-            // 1. 必须在框选矩形内
             Grid.CellToXY(nc, out int nx, out int ny);
             if (nx < min.x || nx >= max.x || ny < min.y || ny >= max.y) return false;
-
-            // 2. 必须可见
             if (!Grid.IsVisible(nc)) return false;
-
-            // 3. 邻居格上必须存在同类型的网络建筑（电线对电线、管道对管道）
             var srcMgr = srcComponent.GetNetworkManager();
             if (srcMgr == null) return false;
-
             for (int layer = 0; layer < LAYER_COUNT; layer++)
             {
                 GameObject ngo = Grid.Objects[nc, layer];
@@ -211,10 +291,7 @@ protected override void OnPrefabInit()
                 if (n.IsNullOrDestroyed()) continue;
                 var nm = n.GetNetworkManager();
                 if (nm == null) continue;
-				// 引用相等 —— 同一个 Game.Instance.xxxConduitSystem 实例才算兼容。
-				// 不能用 GetType()：气体管和液体管都是 UtilityNetworkManager<FlowUtilityNetwork, Vent>，
-				// 运行时类型相同，GetType() 判不出区别。
-				if (ReferenceEquals(nm, srcMgr)) return true;
+                if (ReferenceEquals(nm, srcMgr)) return true;
             }
             return false;
         }
@@ -228,12 +305,8 @@ protected override void OnPrefabInit()
                 if (mgr != null)
                 {
                     UtilityConnections newConnections = mgr.GetConnections(cell, false) | addConnections;
-                    // KAnimGraphTileVisualizer.UpdateConnections 内部会调用
-                    //   connectionManager.SetConnections(new_connections, cell, isPhysicalBuilding)
-                    // 这一步才是真正把连接写进 UtilityNetworkManager（包括 physicalGrid 掩码 + Reconnect 回填邻居）。
                     vis.UpdateConnections(newConnections);
                     vis.Refresh();
-                    // 收集本次涉及的所有 network manager，OnDragComplete 末尾统一 ForceRebuildNetworks。
                     dirtyMgrs.Add(mgr);
                 }
             }
@@ -244,7 +317,6 @@ protected override void OnPrefabInit()
 
         private void VisualizeAction(int cell, GameObject objectOnCell, IHaveUtilityNetworkMgr utilityComponent, UtilityConnections addConnections)
         {
-            // 四个方向都要画：ConnectTool 是新增连接，addConnections 可能包含任意方向位。
             if ((addConnections & UtilityConnections.Down) != 0)
                 CreateVisualizer(cell, Grid.CellBelow(cell), true);
             if ((addConnections & UtilityConnections.Up) != 0)

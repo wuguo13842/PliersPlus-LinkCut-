@@ -94,6 +94,7 @@
   <ItemGroup>
     <EmbeddedResource Include="ModAssets\assets\image_wirecutter_button.dds" />
     <EmbeddedResource Include="ModAssets\assets\image_wirecutter_visualizer.dds" />
+	<EmbeddedResource Include="ModAssets\assets\image_connect_drag.dds" />
     <TranslationFiles Include="ModAssets\translations\*.po" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
